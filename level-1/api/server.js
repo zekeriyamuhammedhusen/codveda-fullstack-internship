@@ -4,6 +4,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Parse JSON request bodies
+const cors = require("cors");
+app.use(cors());
 app.use(express.json());
 
 // In-memory data (we'll replace this with MongoDB in Level 2)
