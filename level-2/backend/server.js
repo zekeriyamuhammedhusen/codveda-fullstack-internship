@@ -4,12 +4,17 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const Category = require("./models/category");
 const Product = require("./models/product");
+const cookieParser = require("cookie-parser");
+const authRoutes = require("./routes/auth");
+const { protect, restrictTo } = require("./middleware/auth");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
+app.use("/api/auth", authRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "Products API (MongoDB) is running" });
@@ -22,13 +27,13 @@ app.get("/api/categories", async (req, res) => {
   res.status(200).json(categories);
 });
 
-app.post("/api/categories", async (req, res) => {
+app.post("/api/categories", protect, async (req, res) => {
   const { name } = req.body || {};
   const category = await Category.create({ name });
   res.status(201).json(category);
 });
 
-app.delete("/api/categories/:id", async (req, res) => {
+app.delete("/api/categories/:id", protect, restrictTo("admin"), async (req, res) => {
   const inUse = await Product.exists({ category: req.params.id });
   if (inUse) {
     return res.status(409).json({ error: "Category still has products" });
@@ -74,7 +79,7 @@ app.get("/api/products/:id", async (req, res) => {
 });
 
 // CREATE
-app.post("/api/products", async (req, res) => {
+app.post("/api/products", protect, async (req, res) => {
   const { name, price, category, inStock } = req.body || {};
 
   if (category) {
@@ -90,7 +95,7 @@ app.post("/api/products", async (req, res) => {
 });
 
 // UPDATE
-app.put("/api/products/:id", async (req, res) => {
+app.put("/api/products/:id", protect, async (req, res) => {
   const { name, price, category, inStock } = req.body || {};
 
   const updates = {};
@@ -117,7 +122,7 @@ app.put("/api/products/:id", async (req, res) => {
 });
 
 // DELETE
-app.delete("/api/products/:id", async (req, res) => {
+app.delete("/api/products/:id", protect, restrictTo("admin"), async (req, res) => {
   const product = await Product.findByIdAndDelete(req.params.id);
   if (!product) {
     return res.status(404).json({ error: "Product not found" });

@@ -57,3 +57,40 @@ Mongoose validates data before saving. Invalid data returns `400` with the schem
 
 - `.lean()` on read queries returns plain objects, which is faster
 - Indexes support the common filter, sort, and search queries
+
+## Authentication and Authorization (Level 2, Task 2)
+
+Users sign up and log in with JWT. Passwords are hashed with bcrypt, and the token is stored in an HTTP-only cookie.
+
+Add these to your `.env`:
+
+```
+JWT_SECRET=a-long-random-string
+JWT_EXPIRES_IN=1h
+```
+
+### Auth endpoints
+
+| Method | Route            | Description                               |
+| ------ | ---------------- | ----------------------------------------- |
+| POST   | /api/auth/signup | Create an account (role is always `user`) |
+| POST   | /api/auth/login  | Log in and receive the token cookie       |
+| POST   | /api/auth/logout | Clear the token cookie                    |
+| GET    | /api/auth/me     | Get the logged-in user (protected)        |
+
+### Access rules
+
+| Route                              | Who can use it     |
+| ---------------------------------- | ------------------ |
+| GET products, GET categories       | Anyone             |
+| POST/PUT products, POST categories | Any logged-in user |
+| DELETE products, DELETE categories | Admins only        |
+
+### Security
+
+- Passwords are hashed with bcrypt (10 salt rounds) before saving, and are never returned by the API
+- The JWT is stored in an HTTP-only cookie (`sameSite: lax`, `secure` in production), so browser scripts cannot read it
+- Tokens expire after 1 hour
+- Signup ignores any `role` in the request, so nobody can create an admin account
+- Login returns the same error for a wrong email and a wrong password
+- Status codes: `401` not logged in or invalid token, `403` wrong role, `409` duplicate email
