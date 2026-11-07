@@ -258,6 +258,25 @@ button.danger {
   flex: 1;
 }
 
+/* ---------- Live notifications ---------- */
+
+.toasts {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  gap: 8px;
+  z-index: 10;
+}
+
+.toast {
+  background: #1f4e79;
+  color: white;
+  padding: 12px 16px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  font-size: 14px;
+}
 /* ---------- Small screens: sidebar becomes a top bar ---------- */
 
 @media (max-width: 700px) {

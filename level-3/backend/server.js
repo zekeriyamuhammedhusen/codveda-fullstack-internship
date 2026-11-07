@@ -7,6 +7,8 @@ const Product = require("./models/product");
 const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/auth");
 const { protect, restrictTo } = require("./middleware/auth");
+const http = require("http");
+const { initSocket, getIO } = require("./socket");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,17 +35,22 @@ app.post("/api/categories", protect, async (req, res) => {
   res.status(201).json(category);
 });
 
-app.delete("/api/categories/:id", protect, restrictTo("admin"), async (req, res) => {
-  const inUse = await Product.exists({ category: req.params.id });
-  if (inUse) {
-    return res.status(409).json({ error: "Category still has products" });
-  }
-  const category = await Category.findByIdAndDelete(req.params.id);
-  if (!category) {
-    return res.status(404).json({ error: "Category not found" });
-  }
-  res.status(204).send();
-});
+app.delete(
+  "/api/categories/:id",
+  protect,
+  restrictTo("admin"),
+  async (req, res) => {
+    const inUse = await Product.exists({ category: req.params.id });
+    if (inUse) {
+      return res.status(409).json({ error: "Category still has products" });
+    }
+    const category = await Category.findByIdAndDelete(req.params.id);
+    if (!category) {
+      return res.status(404).json({ error: "Category not found" });
+    }
+    res.status(204).send();
+  },
+);
 
 // ---------- Products ----------
 
@@ -91,6 +98,15 @@ app.post("/api/products", protect, async (req, res) => {
 
   const product = await Product.create({ name, price, category, inStock });
   await product.populate("category", "name");
+
+  const io = getIO();
+  io.emit("products:changed", { action: "created", name: product.name });
+  if (req.user.role !== "admin") {
+    io.to("admins").emit("notification", {
+      message: req.user.name + " added a product: " + product.name,
+    });
+  }
+
   res.status(201).json(product);
 });
 
@@ -118,17 +134,28 @@ app.put("/api/products/:id", protect, async (req, res) => {
   if (!product) {
     return res.status(404).json({ error: "Product not found" });
   }
+
+  getIO().emit("products:changed", { action: "updated", name: product.name });
+
   res.status(200).json(product);
 });
 
 // DELETE
-app.delete("/api/products/:id", protect, restrictTo("admin"), async (req, res) => {
-  const product = await Product.findByIdAndDelete(req.params.id);
-  if (!product) {
-    return res.status(404).json({ error: "Product not found" });
-  }
-  res.status(204).send();
-});
+app.delete(
+  "/api/products/:id",
+  protect,
+  restrictTo("admin"),
+  async (req, res) => {
+    const product = await Product.findByIdAndDelete(req.params.id);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    getIO().emit("products:changed", { action: "deleted", name: product.name });
+
+    res.status(204).send();
+  },
+);
 
 // ---------- Errors ----------
 
@@ -148,7 +175,9 @@ app.use((err, req, res, next) => {
     return res.status(400).json({ error: "Invalid id format" });
   }
   if (err.code === 11000) {
-    return res.status(409).json({ error: "Duplicate value, that already exists" });
+    return res
+      .status(409)
+      .json({ error: "Duplicate value, that already exists" });
   }
   console.error(err);
   res.status(500).json({ error: "Internal server error" });
@@ -156,7 +185,10 @@ app.use((err, req, res, next) => {
 
 // Connect to the database first, then start listening
 connectDB().then(() => {
-  app.listen(PORT, () => {
+  const server = http.createServer(app);
+  initSocket(server);
+
+  server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 });

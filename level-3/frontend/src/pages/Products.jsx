@@ -1,5 +1,6 @@
     import { useEffect, useState } from "react";
     import api from "../api";
+    import socket from "../socket";
     import { useAuth } from "../context/AuthContext";
     import ProductForm from "../components/ProductForm";
     import ProductCard from "../components/ProductCard";
@@ -31,9 +32,16 @@
     }
 
     useEffect(() => {
-        loadData();
-    }, []);
+    loadData();
 
+        // Refresh the list whenever anyone adds, edits, or deletes a product
+        function onChanged() {
+        loadData();
+        }
+        socket.on("products:changed", onChanged);
+
+        return () => socket.off("products:changed", onChanged);
+    }, []);
     function showMessage(text, type) {
         setMessage({ text, type });
     }
