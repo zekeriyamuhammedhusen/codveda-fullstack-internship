@@ -7,7 +7,7 @@
 
     const cookieOptions = {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 1000,
     };
@@ -52,7 +52,7 @@
 
     // LOGOUT
     router.post("/logout", (req, res) => {
-    res.clearCookie("token", { httpOnly: true, sameSite: "lax" });
+    res.clearCookie("token", cookieOptions);
     res.status(200).json({ message: "Logged out" });
     });
 
