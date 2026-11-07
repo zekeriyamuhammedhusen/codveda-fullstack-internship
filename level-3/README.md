@@ -100,3 +100,17 @@ Open http://localhost:5173. New accounts are always regular users. To make an ad
 | GET    | /api/categories     | Public    |
 | POST   | /api/categories     | Logged in |
 | DELETE | /api/categories/:id | Admin     |
+
+## Live demo
+
+- **Frontend:** https://codveda-fullstack-internship-zak.vercel.app
+- **Backend API:** https://codveda-fullstack-internship-flem.onrender.com
+
+The backend runs on a free hosting plan, so the first request after a period of inactivity can take about 30 seconds while the server wakes up.
+
+## Deployment
+
+- **Database:** MongoDB Atlas
+- **Backend:** Render (Node.js web service, environment variables for the secrets)
+- **Frontend:** Vercel (Vite build, with a rewrite rule so React Router pages work on refresh)
+- The login cookie is `HttpOnly`, `Secure`, and `SameSite=None` in production, so it works between the two domains
