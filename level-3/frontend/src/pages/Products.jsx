@@ -5,6 +5,21 @@
     import ProductForm from "../components/ProductForm";
     import ProductCard from "../components/ProductCard";
 
+    // Small helpers that change one item in a list. They are safe to run twice,
+    // which matters because the person who made a change also receives the event.
+    function addProduct(list, product) {
+    if (list.some((p) => p._id === product._id)) return list;
+    return [product, ...list];
+    }
+
+    function replaceProduct(list, product) {
+    return list.map((p) => (p._id === product._id ? product : p));
+    }
+
+    function removeProduct(list, id) {
+    return list.filter((p) => p._id !== id);
+    }
+
     export default function Products() {
     const { user } = useAuth();
     const [products, setProducts] = useState([]);
@@ -31,17 +46,47 @@
         }
     }
 
-    useEffect(() => {
-    loadData();
-
-        // Refresh the list whenever anyone adds, edits, or deletes a product
-        function onChanged() {
-        loadData();
+    async function loadCategories() {
+        try {
+        const res = await api.get("/categories");
+        setCategories(res.data);
+        } catch {
+        // keep the current list if this fails
         }
-        socket.on("products:changed", onChanged);
+    }
 
-        return () => socket.off("products:changed", onChanged);
+    useEffect(() => {
+        loadData();
+
+        // Each event changes just one item in the list
+        function onCreated(product) {
+        setProducts((prev) => addProduct(prev, product));
+        }
+        function onUpdated(product) {
+        setProducts((prev) => replaceProduct(prev, product));
+        }
+        function onDeleted(data) {
+        setProducts((prev) => removeProduct(prev, data._id));
+        setEditing((current) => (current && current._id === data._id ? null : current));
+        }
+
+        socket.on("product:created", onCreated);
+        socket.on("product:updated", onUpdated);
+        socket.on("product:deleted", onDeleted);
+        socket.on("categories:changed", loadCategories);
+
+        // After a dropped connection comes back, reload once to catch missed events
+        socket.io.on("reconnect", loadData);
+
+        return () => {
+        socket.off("product:created", onCreated);
+        socket.off("product:updated", onUpdated);
+        socket.off("product:deleted", onDeleted);
+        socket.off("categories:changed", loadCategories);
+        socket.io.off("reconnect", loadData);
+        };
     }, []);
+
     function showMessage(text, type) {
         setMessage({ text, type });
     }
@@ -49,22 +94,23 @@
     // Used by the form for both create and update. Errors go back to the form.
     async function handleSave(values) {
         if (editing) {
-        await api.put("/products/" + editing._id, values);
+        const res = await api.put("/products/" + editing._id, values);
+        setProducts((prev) => replaceProduct(prev, res.data));
         showMessage("Product updated", "success");
         setEditing(null);
         } else {
-        await api.post("/products", values);
+        const res = await api.post("/products", values);
+        setProducts((prev) => addProduct(prev, res.data));
         showMessage("Product added", "success");
         }
-        await loadData();
     }
 
     async function handleDelete(product) {
         if (!window.confirm("Delete " + product.name + "?")) return;
         try {
         await api.delete("/products/" + product._id);
+        setProducts((prev) => removeProduct(prev, product._id));
         showMessage("Product deleted", "success");
-        await loadData();
         } catch (err) {
         showMessage(err.response?.data?.error || "Could not delete", "error");
         }
@@ -76,7 +122,7 @@
         await api.post("/categories", { name: newCategory });
         setNewCategory("");
         showMessage("Category added", "success");
-        await loadData();
+        await loadCategories();
         } catch (err) {
         showMessage(err.response?.data?.error || "Could not add category", "error");
         }
