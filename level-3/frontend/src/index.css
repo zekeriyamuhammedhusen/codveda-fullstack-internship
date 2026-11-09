@@ -277,6 +277,32 @@ button.danger {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   font-size: 14px;
 }
+.password-field {
+  position: relative;
+  display: flex;
+}
+
+.password-field input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.eye-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  color: #555;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.eye-btn:hover {
+  color: #222;
+  opacity: 1;
+}
 /* ---------- Small screens: sidebar becomes a top bar ---------- */
 
 @media (max-width: 700px) {
